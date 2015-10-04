@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,22 +10,23 @@
 
 package starling.display
 {
-    import flash.geom.Matrix;
-    import flash.geom.Matrix3D;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    import flash.geom.Vector3D;
-    import flash.system.Capabilities;
-    import flash.utils.getQualifiedClassName;
-    
-    import starling.core.RenderSupport;
-    import starling.core.starling_internal;
-    import starling.errors.AbstractClassError;
-    import starling.events.Event;
-    import starling.filters.FragmentFilter;
-    import starling.utils.MatrixUtil;
-    
-    use namespace starling_internal;
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
+import flash.system.Capabilities;
+import flash.utils.getQualifiedClassName;
+
+import starling.core.RenderSupport;
+import starling.core.starling_internal;
+import starling.errors.AbstractClassError;
+import starling.events.Event;
+import starling.filters.FragmentFilter;
+import starling.utils.MatrixUtil;
+
+import starlingExtensions.abstract.IDisplayObject;
+import starlingExtensions.abstract.IDisplayObjectContainer;
+
+use namespace starling_internal;
     
     /**
      *  A DisplayObjectContainer represents a collection of display objects.
@@ -64,11 +65,11 @@ package starling.display
      *  @see Sprite
      *  @see DisplayObject
      */
-    public class DisplayObjectContainer extends DisplayObject
+    public class DisplayObjectContainer extends DisplayObject implements IDisplayObjectContainer
     {
         // members
 
-        private var mChildren:Vector.<DisplayObject>;
+        protected var mChildren:Vector.<DisplayObject>;
         private var mTouchGroup:Boolean;
         
         /** Helper objects. */
@@ -105,14 +106,15 @@ package starling.display
         /** Adds a child to the container. It will be at the frontmost position. */
         public function addChild(child:DisplayObject):DisplayObject
         {
-            return addChildAt(child, mChildren.length);
+            addChildAt(child, numChildren);
+            return child;
         }
         
         /** Adds a child to the container at a certain index. */
         public function addChildAt(child:DisplayObject, index:int):DisplayObject
         {
-            var numChildren:int = mChildren.length;
-
+            var numChildren:int = mChildren.length; 
+            
             if (index >= 0 && index <= numChildren)
             {
                 if (child.parent == this)
@@ -122,10 +124,11 @@ package starling.display
                 else
                 {
                     child.removeFromParent();
-
+                    
+                    // 'splice' creates a temporary object, so we avoid it if it's not necessary
                     if (index == numChildren) mChildren[numChildren] = child;
-                    else spliceChildren(index, 0, child);
-
+                    else                      mChildren.splice(index, 0, child);
+                    
                     child.setParent(this);
                     child.dispatchEventWith(Event.ADDED, true);
                     
@@ -154,11 +157,11 @@ package starling.display
             return child;
         }
         
-        /** Removes a child at a certain index. The index positions of any display objects above
-         *  the child are decreased by 1. If requested, the child will be disposed right away. */
+        /** Removes a child at a certain index. Children above the child will move down. If
+         *  requested, the child will be disposed right away. */
         public function removeChildAt(index:int, dispose:Boolean=false):DisplayObject
         {
-            if (index >= 0 && index < mChildren.length)
+            if (index >= 0 && index < numChildren)
             {
                 var child:DisplayObject = mChildren[index];
                 child.dispatchEventWith(Event.REMOVED, true);
@@ -172,7 +175,7 @@ package starling.display
                 
                 child.setParent(null);
                 index = mChildren.indexOf(child); // index might have changed by event handler
-                if (index >= 0) spliceChildren(index, 1);
+                if (index >= 0) mChildren.splice(index, 1); 
                 if (dispose) child.dispose();
                 
                 return child;
@@ -193,16 +196,10 @@ package starling.display
             for (var i:int=beginIndex; i<=endIndex; ++i)
                 removeChildAt(beginIndex, dispose);
         }
-
-        /** Returns a child object at a certain index. If you pass a negative index,
-         *  '-1' will return the last child, '-2' the second to last child, etc. */
+        
+        /** Returns a child object at a certain index. */
         public function getChildAt(index:int):DisplayObject
         {
-            var numChildren:int = mChildren.length;
-
-            if (index < 0)
-                index = numChildren + index;
-
             if (index >= 0 && index < numChildren)
                 return mChildren[index];
             else
@@ -231,8 +228,8 @@ package starling.display
             var oldIndex:int = getChildIndex(child);
             if (oldIndex == index) return;
             if (oldIndex == -1) throw new ArgumentError("Not a child of this container");
-            spliceChildren(oldIndex, 1);
-            spliceChildren(index, 0, child);
+            mChildren.splice(oldIndex, 1);
+            mChildren.splice(index, 0, child);
         }
         
         /** Swaps the indexes of two children. */
@@ -290,7 +287,7 @@ package starling.display
             }
             else if (numChildren == 1)
             {
-                mChildren[0].getBounds(targetSpace, resultRect);
+                resultRect = mChildren[0].getBounds(targetSpace, resultRect);
             }
             else
             {
@@ -300,44 +297,41 @@ package starling.display
                 for (var i:int=0; i<numChildren; ++i)
                 {
                     mChildren[i].getBounds(targetSpace, resultRect);
-
-                    if (minX > resultRect.x)      minX = resultRect.x;
-                    if (maxX < resultRect.right)  maxX = resultRect.right;
-                    if (minY > resultRect.y)      minY = resultRect.y;
-                    if (maxY < resultRect.bottom) maxY = resultRect.bottom;
+                    minX = minX < resultRect.x ? minX : resultRect.x;
+                    maxX = maxX > resultRect.right ? maxX : resultRect.right;
+                    minY = minY < resultRect.y ? minY : resultRect.y;
+                    maxY = maxY > resultRect.bottom ? maxY : resultRect.bottom;
                 }
                 
                 resultRect.setTo(minX, minY, maxX - minX, maxY - minY);
-            }
+            }                
             
             return resultRect;
         }
-
+        
         /** @inheritDoc */
         public override function hitTest(localPoint:Point, forTouch:Boolean=false):DisplayObject
         {
-            if (forTouch && (!visible || !touchable)) return null;
-            if (!hitTestMask(localPoint)) return null;
-
+            if (forTouch && (!visible || !touchable))
+                return null;
+            
             var target:DisplayObject = null;
             var localX:Number = localPoint.x;
             var localY:Number = localPoint.y;
             var numChildren:int = mChildren.length;
 
-            for (var i:int = numChildren - 1; i >= 0; --i) // front to back!
+            for (var i:int=numChildren-1; i>=0; --i) // front to back!
             {
                 var child:DisplayObject = mChildren[i];
-                if (child.isMask) continue;
-
-                sHelperMatrix.copyFrom(child.transformationMatrix);
-                sHelperMatrix.invert();
-
+                getTransformationMatrix(child, sHelperMatrix);
+                
                 MatrixUtil.transformCoords(sHelperMatrix, localX, localY, sHelperPoint);
                 target = child.hitTest(sHelperPoint, forTouch);
-
-                if (target) return forTouch && mTouchGroup ? this : target;
+                
+                if (target)
+                    return forTouch && mTouchGroup ? this : target;
             }
-
+            
             return null;
         }
         
@@ -355,18 +349,13 @@ package starling.display
                 if (child.hasVisibleArea)
                 {
                     var filter:FragmentFilter = child.filter;
-                    var mask:DisplayObject = child.mask;
 
                     support.pushMatrix();
                     support.transformMatrix(child);
                     support.blendMode = child.blendMode;
-
-                    if (mask) support.pushMask(mask);
-
+                    
                     if (filter) filter.render(child, support, alpha);
                     else        child.render(support, alpha);
-
-                    if (mask) support.popMask();
                     
                     support.blendMode = blendMode;
                     support.popMatrix();
@@ -383,7 +372,7 @@ package starling.display
             // The event listeners might modify the display tree, which could make the loop crash. 
             // Thus, we collect them in a list and iterate over that list instead.
             // And since another listener could call this method internally, we have to take 
-            // care that the static helper vector does not get corrupted.
+            // care that the static helper vector does not get currupted.
             
             var fromIndex:int = sBroadcastListeners.length;
             getChildEventListeners(this, event.type, sBroadcastListeners);
@@ -461,51 +450,7 @@ package starling.display
                     input[i] = buffer[int(i - startIndex)];
             }
         }
-
-        /** Custom implementation of 'Vector.splice'. The native method always create temporary
-         *  objects that have to be garbage collected. This implementation does not cause such
-         *  issues. */
-        private function spliceChildren(startIndex:int, deleteCount:uint=uint.MAX_VALUE,
-                                        insertee:DisplayObject=null):void
-        {
-            var vector:Vector.<DisplayObject> = mChildren;
-            var oldLength:uint  = vector.length;
-
-            if (startIndex < 0) startIndex += oldLength;
-            if (startIndex < 0) startIndex = 0; else if (startIndex > oldLength) startIndex = oldLength;
-            if (startIndex + deleteCount > oldLength) deleteCount = oldLength - startIndex;
-
-            var i:int;
-            var insertCount:int = insertee ? 1 : 0;
-            var deltaLength:int = insertCount - deleteCount;
-            var newLength:uint  = oldLength + deltaLength;
-            var shiftCount:int  = oldLength - startIndex - deleteCount;
-
-            if (deltaLength < 0)
-            {
-                i = startIndex + insertCount;
-                while (shiftCount)
-                {
-                    vector[i] = vector[int(i - deltaLength)];
-                    --shiftCount; ++i;
-                }
-                vector.length = newLength;
-            }
-            else if (deltaLength > 0)
-            {
-                i = 1;
-                while (shiftCount)
-                {
-                    vector[int(newLength - i)] = vector[int(oldLength - i)];
-                    --shiftCount; ++i;
-                }
-                vector.length = newLength;
-            }
-
-            if (insertee)
-                vector[startIndex] = insertee;
-        }
-
+        
         /** @private */
         internal function getChildEventListeners(object:DisplayObject, eventType:String, 
                                                  listeners:Vector.<DisplayObject>):void
@@ -523,6 +468,30 @@ package starling.display
                 for (var i:int=0; i<numChildren; ++i)
                     getChildEventListeners(children[i], eventType, listeners);
             }
+        }
+
+        public function addAChild(child:IDisplayObject):void {
+            addChild(child as DisplayObject)
+        }
+
+        public function addAChildAt(child:IDisplayObject, index:int):void {
+            addAChildAt(child as DisplayObject, index);
+        }
+
+        public function getAChildAt(index:int):IDisplayObject {
+            return getChildAt(index);
+        }
+
+        public function getAChildIndex(child:IDisplayObject):int {
+            return getChildIndex(child as DisplayObject);
+        }
+
+        public function removeAChild(child:IDisplayObject):void {
+            removeAChild(child as DisplayObject)
+        }
+
+        public function removeAChildAt(index:int, child:IDisplayObject):void {
+            removeChildAt(index, child as DisplayObject);
         }
     }
 }

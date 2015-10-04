@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,16 +10,16 @@
 
 package starling.display
 {
-    import flash.geom.Matrix;
-    import flash.geom.Matrix3D;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    import flash.geom.Vector3D;
-    
-    import starling.core.RenderSupport;
-    import starling.utils.VertexData;
-    
-    /** A Quad represents a rectangle with a uniform color or a color gradient.
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
+
+import starling.core.RenderSupport;
+import starling.utils.VertexData;
+
+import starlingExtensions.abstract.IQuad;
+
+/** A Quad represents a rectangle with a uniform color or a color gradient.
      *  
      *  <p>You can set one color per vertex. The colors will smoothly fade into each other over the area
      *  of the quad. To display a simple linear color gradient, assign one color to vertices 0 and 1 and 
@@ -35,7 +35,7 @@ package starling.display
      * 
      *  @see Image
      */
-    public class Quad extends DisplayObject
+    public class Quad extends DisplayObject implements IQuad
     {
         private var mTinted:Boolean;
         
@@ -44,9 +44,7 @@ package starling.display
         
         /** Helper objects. */
         private static var sHelperPoint:Point = new Point();
-        private static var sHelperPoint3D:Vector3D = new Vector3D();
         private static var sHelperMatrix:Matrix = new Matrix();
-        private static var sHelperMatrix3D:Matrix3D = new Matrix3D();
         
         /** Creates a quad with a certain size and color. The last parameter controls if the 
          *  alpha value should be premultiplied into the color values on rendering, which can
@@ -94,12 +92,6 @@ package starling.display
                                  sHelperPoint.x * scaleX, sHelperPoint.y * scaleY);
                 if (scaleX < 0) { resultRect.width  *= -1; resultRect.x -= resultRect.width;  }
                 if (scaleY < 0) { resultRect.height *= -1; resultRect.y -= resultRect.height; }
-            }
-            else if (is3D && stage)
-            {
-                stage.getCameraPosition(targetSpace, sHelperPoint3D);
-                getTransformationMatrix3D(targetSpace, sHelperMatrix3D);
-                mVertexData.getBoundsProjected(sHelperMatrix3D, sHelperPoint3D, 0, 4, resultRect);
             }
             else
             {

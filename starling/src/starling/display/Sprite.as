@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,17 +10,16 @@
 
 package starling.display
 {
-    import flash.geom.Matrix;
-    import flash.geom.Matrix3D;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    
-    import starling.core.RenderSupport;
-    import starling.events.Event;
-    import starling.utils.MatrixUtil;
-    import starling.utils.RectangleUtil;
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
 
-    /** Dispatched on all children when the object is flattened. */
+import starling.core.RenderSupport;
+import starling.events.Event;
+import starling.utils.MatrixUtil;
+import starling.utils.RectangleUtil;
+
+/** Dispatched on all children when the object is flattened. */
     [Event(name="flatten", type="starling.events.Event")]
     
     /** A Sprite is the most lightweight, non-abstract container class.
@@ -52,9 +51,8 @@ package starling.display
      */
     public class Sprite extends DisplayObjectContainer
     {
-        private var mFlattenedContents:Vector.<QuadBatch>;
+        protected var mFlattenedContents:Vector.<QuadBatch>;
         private var mFlattenRequested:Boolean;
-        private var mFlattenOptimized:Boolean;
         private var mClipRect:Rectangle;
         
         /** Helper objects. */
@@ -98,19 +96,11 @@ package starling.display
          *  produce at least one draw call; if it were merged together with other objects, this
          *  would cause additional matrix operations, and the optimization would have been in vain.
          *  Thus, don't just blindly flatten all your sprites, but reserve flattening for sprites
-         *  with a big number of children.</p>
-         *
-         *  <p>Beware that while you can add a 'mask' or 'clipRect' to a flattened sprite, any
-         *  such property will be ignored on its children. Furthermore, while a 'Sprite3D' may
-         *  contain a flattened sprite, a flattened sprite must not contain a 'Sprite3D'.</p>
-         *
-         *  @param ignoreChildOrder If the child order is not important, you can further optimize
-         *           the number of draw calls. Naturally, this is not an option for all use-cases.
+         *  with a big number of children.</p> 
          */
-        public function flatten(ignoreChildOrder:Boolean=false):void
+        public function flatten():void
         {
             mFlattenRequested = true;
-            mFlattenOptimized = ignoreChildOrder;
             broadcastEventWith(Event.FLATTEN);
         }
         
@@ -130,7 +120,7 @@ package starling.display
         
         /** The object's clipping rectangle in its local coordinate system.
          *  Only pixels within that rectangle will be drawn. 
-         *  <strong>Note:</strong> clipping rectangles are axis aligned with the screen, so they
+         *  <strong>Note:</strong> clip rects are axis aligned with the screen, so they
          *  will not be rotated or skewed if the Sprite is. */
         public function get clipRect():Rectangle { return mClipRect; }
         public function set clipRect(value:Rectangle):void 
@@ -139,8 +129,8 @@ package starling.display
             else mClipRect = (value ? value.clone() : null);
         }
 
-        /** Returns the bounds of the container's clipping rectangle in the given coordinate space,
-         *  or null if the sprite does not have one. */
+        /** Returns the bounds of the container's clipRect in the given coordinate space, or
+         *  null if the sprite doens't have a clipRect. */ 
         public function getClipRect(targetSpace:DisplayObject, resultRect:Rectangle=null):Rectangle
         {
             if (mClipRect == null) return null;
@@ -218,15 +208,13 @@ package starling.display
                 if (mFlattenRequested)
                 {
                     QuadBatch.compile(this, mFlattenedContents);
-                    if (mFlattenOptimized) QuadBatch.optimize(mFlattenedContents);
-
                     support.applyClipRect(); // compiling filters might change scissor rect. :-\
                     mFlattenRequested = false;
                 }
                 
                 var alpha:Number = parentAlpha * this.alpha;
                 var numBatches:int = mFlattenedContents.length;
-                var mvpMatrix:Matrix3D = support.mvpMatrix3D;
+                var mvpMatrix:Matrix = support.mvpMatrix;
                 
                 support.finishQuadBatch();
                 support.raiseDrawCount(numBatches);

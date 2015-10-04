@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,10 +10,10 @@
 
 package starling.events
 {
-    import starling.core.starling_internal;
-    import starling.display.DisplayObject;
-    
-    use namespace starling_internal;
+import starling.core.starling_internal;
+import starling.display.DisplayObject;
+
+use namespace starling_internal;
     
     /** A TouchEvent is triggered either by touch or mouse input.  
      *  

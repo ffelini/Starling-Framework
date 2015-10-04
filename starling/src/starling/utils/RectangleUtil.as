@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2012 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,13 +10,13 @@
 
 package starling.utils
 {
-    import flash.geom.Matrix;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    
-    import starling.errors.AbstractClassError;
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
 
-    /** A utility class containing methods related to the Rectangle class. */
+import starling.errors.AbstractClassError;
+
+/** A utility class containing methods related to the Rectangle class. */
     public class RectangleUtil
     {
         /** Helper objects. */

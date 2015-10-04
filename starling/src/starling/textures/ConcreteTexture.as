@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,46 +10,38 @@
 
 package starling.textures
 {
-    import flash.display.Bitmap;
-    import flash.display.BitmapData;
-    import flash.display3D.Context3D;
-    import flash.display3D.textures.TextureBase;
-    import flash.geom.Matrix;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    import flash.media.Camera;
-    import flash.net.NetStream;
-    import flash.utils.ByteArray;
-    import flash.utils.getQualifiedClassName;
+import flash.display.Bitmap;
+import flash.display.BitmapData;
+import flash.display3D.Context3D;
+import flash.display3D.textures.TextureBase;
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
+import flash.utils.ByteArray;
 
-    import starling.core.RenderSupport;
-    import starling.core.Starling;
-    import starling.core.starling_internal;
-    import starling.errors.MissingContextError;
-    import starling.errors.NotSupportedError;
-    import starling.events.Event;
-    import starling.utils.Color;
-    import starling.utils.execute;
+import starling.core.RenderSupport;
+import starling.core.Starling;
+import starling.core.starling_internal;
+import starling.errors.MissingContextError;
+import starling.events.Event;
+import starling.utils.Color;
 
-    use namespace starling_internal;
+use namespace starling_internal;
 
     /** A ConcreteTexture wraps a Stage3D texture object, storing the properties of the texture. */
     public class ConcreteTexture extends Texture
     {
-        private static const TEXTURE_READY:String = "textureReady"; // defined here for backwards compatibility
-        
-        private var mBase:TextureBase;
-        private var mFormat:String;
-        private var mWidth:int;
-        private var mHeight:int;
-        private var mMipMapping:Boolean;
-        private var mPremultipliedAlpha:Boolean;
-        private var mOptimizedForRenderTexture:Boolean;
-        private var mScale:Number;
-        private var mRepeat:Boolean;
-        private var mOnRestore:Function;
-        private var mDataUploaded:Boolean;
-        private var mTextureReadyCallback:Function;
+		protected var mBase:TextureBase;
+		protected var mFormat:String;
+		protected var mWidth:int;
+		protected var mHeight:int;
+		protected var mMipMapping:Boolean;
+		protected var mPremultipliedAlpha:Boolean;
+		protected var mOptimizedForRenderTexture:Boolean;
+		protected var mScale:Number;
+		protected var mRepeat:Boolean;
+		protected var mOnRestore:Function;
+		protected var mDataUploaded:Boolean;
         
         /** helper object */
         private static var sOrigin:Point = new Point();
@@ -72,20 +64,15 @@ package starling.textures
             mRepeat = repeat;
             mOnRestore = null;
             mDataUploaded = false;
-            mTextureReadyCallback = null;
         }
-        
+        public var disposed:Boolean;
         /** Disposes the TextureBase object. */
         public override function dispose():void
         {
-            if (mBase)
-            {
-                mBase.removeEventListener(TEXTURE_READY, onTextureReady);
-                mBase.dispose();
-            }
-
-            this.onRestore = null; // removes event listener
+            if (mBase) mBase.dispose();
+            this.onRestore = null; // removes event listener 
             super.dispose();
+			disposed = true;
         }
         
         // texture data upload
@@ -163,6 +150,9 @@ package starling.textures
          */
         public function uploadAtfData(data:ByteArray, offset:int=0, async:*=null):void
         {
+            const eventType:String = "textureReady"; // defined here for backwards compatibility
+            
+            var self:ConcreteTexture = this;
             var isAsync:Boolean = async is Function || async === true;
             var potTexture:flash.display3D.textures.Texture = 
                   mBase as flash.display3D.textures.Texture;
@@ -171,44 +161,22 @@ package starling.textures
                 throw new Error("This texture type does not support ATF data");
             
             if (async is Function)
-            {
-                mTextureReadyCallback = async as Function;
-                mBase.addEventListener(TEXTURE_READY, onTextureReady);
-            }
+                potTexture.addEventListener(eventType, onTextureReady);
             
             potTexture.uploadCompressedTextureFromByteArray(data, offset, isAsync);
             mDataUploaded = true;
-        }
-
-        public function attachNetStream(netStream:NetStream, onComplete:Function=null):void
-        {
-            attachVideo("NetStream", netStream, onComplete);
-        }
-
-        public function attachCamera(camera:Camera, onComplete:Function=null):void
-        {
-            attachVideo("Camera", camera, onComplete);
-        }
-
-        internal function attachVideo(type:String, attachment:Object, onComplete:Function=null):void
-        {
-            const className:String = getQualifiedClassName(mBase);
-
-            if (className == "flash.display3D.textures::VideoTexture")
+            
+            function onTextureReady(event:Object):void
             {
-                mDataUploaded = true;
-                mTextureReadyCallback = onComplete;
-                mBase["attach" + type](attachment);
-                mBase.addEventListener(TEXTURE_READY, onTextureReady);
+                potTexture.removeEventListener(eventType, onTextureReady);
+                
+                var callback:Function = async as Function;
+                if (callback != null)
+                {
+                    if (callback.length == 1) callback(self);
+                    else callback();
+                }
             }
-            else throw new Error("This texture type does not support " + type + " data");
-        }
-
-        private function onTextureReady(event:Object):void
-        {
-            mBase.removeEventListener(TEXTURE_READY, onTextureReady);
-            execute(mTextureReadyCallback, this);
-            mTextureReadyCallback = null;
         }
         
         // texture backup (context loss)
@@ -217,7 +185,7 @@ package starling.textures
         {
             // recreate the underlying texture & restore contents
             createBase();
-            if (mOnRestore != null) mOnRestore();
+            mOnRestore();
             
             // if no texture has been uploaded above, we init the texture with transparent pixels.
             if (!mDataUploaded) clear();
@@ -230,19 +198,14 @@ package starling.textures
         starling_internal function createBase():void
         {
             var context:Context3D = Starling.context;
-            var className:String = getQualifiedClassName(mBase);
             
-            if (className == "flash.display3D.textures::Texture")
+            if (mBase is flash.display3D.textures.Texture)
                 mBase = context.createTexture(mWidth, mHeight, mFormat, 
                                               mOptimizedForRenderTexture);
-            else if (className == "flash.display3D.textures::RectangleTexture")
+            else // if (mBase is RectangleTexture)
                 mBase = context["createRectangleTexture"](mWidth, mHeight, mFormat,
                                                           mOptimizedForRenderTexture);
-            else if (className == "flash.display3D.textures::VideoTexture")
-                mBase = context["createVideoTexture"]();
-            else
-                throw new NotSupportedError("Texture type not supported: " + className);
-
+            
             mDataUploaded = false;
         }
         

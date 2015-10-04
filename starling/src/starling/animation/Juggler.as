@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,11 +10,11 @@
 
 package starling.animation
 {
-    import starling.core.starling_internal;
-    import starling.events.Event;
-    import starling.events.EventDispatcher;
+import starling.core.starling_internal;
+import starling.events.Event;
+import starling.events.EventDispatcher;
 
-    /** The Juggler takes objects that implement IAnimatable (like Tweens) and executes them.
+/** The Juggler takes objects that implement IAnimatable (like Tweens) and executes them.
      * 
      *  <p>A juggler is a simple object. It does no more than saving a list of objects implementing 
      *  "IAnimatable" and advancing their time if it is told to do so (by calling its own 
@@ -61,7 +61,7 @@ package starling.animation
         {
             if (object && mObjects.indexOf(object) == -1) 
             {
-                mObjects[mObjects.length] = object;
+                mObjects.push(object);
             
                 var dispatcher:EventDispatcher = object as EventDispatcher;
                 if (dispatcher) dispatcher.addEventListener(Event.REMOVE_FROM_JUGGLER, onRemove);
@@ -191,24 +191,9 @@ package starling.animation
          *
          *  <p>To cancel the tween, call 'Juggler.removeTweens' with the same target, or pass
          *  the returned 'IAnimatable' instance to 'Juggler.remove()'. Do not use the returned
-         *  IAnimatable otherwise; it is taken from a pool and will be reused.</p>
-         *
-         *  <p>Note that some property types may be animated in a special way:</p>
-         *  <ul>
-         *    <li>If the property contains the string <code>color</code> or <code>Color</code>,
-         *        it will be treated as an unsigned integer with a color value
-         *        (e.g. <code>0xff0000</code> for red). Each color channel will be animated
-         *        individually.</li>
-         *    <li>The same happens if you append the string <code>#rgb</code> to the name.</li>
-         *    <li>If you append <code>#rad</code>, the property is treated as an angle in radians,
-         *        making sure it always uses the shortest possible arc for the rotation.</li>
-         *    <li>The string <code>#deg</code> does the same for angles in degrees.</li>
-         *  </ul>
-         */
+         *  IAnimatable otherwise; it is taken from a pool and will be reused.</p> */
         public function tween(target:Object, time:Number, properties:Object):IAnimatable
         {
-            if (target == null) throw new ArgumentError("target must not be null");
-
             var tween:Tween = Tween.starling_internal::fromPool(target, time);
             
             for (var property:String in properties)
@@ -217,7 +202,7 @@ package starling.animation
                 
                 if (tween.hasOwnProperty(property))
                     tween[property] = value;
-                else if (target.hasOwnProperty(Tween.getPropertyName(property)))
+                else if (target.hasOwnProperty(property))
                     tween.animate(property, value as Number);
                 else
                     throw new ArgumentError("Invalid property: " + property);
@@ -233,7 +218,8 @@ package starling.animation
         {
             Tween.starling_internal::toPool(event.target as Tween);
         }
-        
+		
+		public var curentPassedTime:Number;
         /** Advances all objects by a certain time (in seconds). */
         public function advanceTime(time:Number):void
         {   

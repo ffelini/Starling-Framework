@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,61 +10,62 @@
 
 package starling.textures
 {
-    import flash.display3D.textures.TextureBase;
-    import flash.geom.Matrix;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    
-    import starling.utils.MatrixUtil;
-    import starling.utils.RectangleUtil;
-    import starling.utils.VertexData;
+import flash.display3D.textures.TextureBase;
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
 
-    /** A SubTexture represents a section of another texture. This is achieved solely by 
+import starling.utils.MatrixUtil;
+import starling.utils.RectangleUtil;
+import starling.utils.VertexData;
+
+/** A SubTexture represents a section of another texture. This is achieved solely by
      *  manipulation of texture coordinates, making the class very efficient. 
      *
      *  <p><em>Note that it is OK to create subtextures of subtextures.</em></p>
      */
     public class SubTexture extends Texture
     {
-        private var mParent:Texture;
-        private var mOwnsParent:Boolean;
-        private var mRegion:Rectangle;
-        private var mFrame:Rectangle;
-        private var mRotated:Boolean;
-        private var mWidth:Number;
-        private var mHeight:Number;
-        private var mTransformationMatrix:Matrix;
+		protected var mParent:Texture;
+		protected var mOwnsParent:Boolean;
+		public var mFrame:Rectangle;
+		protected var mRotated:Boolean;
+		protected var mWidth:Number;
+		protected var mHeight:Number;
+		protected var mTransformationMatrix:Matrix;
         
         /** Helper object. */
         private static var sTexCoords:Point = new Point();
         private static var sMatrix:Matrix = new Matrix();
         
-        /** Creates a new SubTexture containing the specified region of a parent texture.
+        /** Creates a new subtexture containing the specified region of a parent texture.
          *
-         *  @param parent     The texture you want to create a SubTexture from.
-         *  @param region     The region of the parent texture that the SubTexture will show
-         *                    (in points). If <code>null</code>, the complete area of the parent.
-         *  @param ownsParent If <code>true</code>, the parent texture will be disposed
-         *                    automatically when the SubTexture is disposed.
-         *  @param frame      If the texture was trimmed, the frame rectangle can be used to restore
-         *                    the trimmed area.
-         *  @param rotated    If true, the SubTexture will show the parent region rotated by
-         *                    90 degrees (CCW).
+         *  @param parentTexture: The texture you want to create a SubTexture from.
+         *  @param region:  The region of the parent texture that the SubTexture will show
+         *                  (in points).
+         *  @param ownsParent: if true, the parent texture will be disposed automatically
+         *                  when the subtexture is disposed.
+         *  @param frame:   If the texture was trimmed, the frame rectangle can be used to restore
+         *                  the trimmed area.
+         *  @param rotated: If true, the SubTexture will show the parent region rotated by
+         *                  90 degrees (CCW).
          */
-        public function SubTexture(parent:Texture, region:Rectangle=null,
+        public function SubTexture(parentTexture:Texture, region:Rectangle,
                                    ownsParent:Boolean=false, frame:Rectangle=null,
                                    rotated:Boolean=false)
         {
             // TODO: in a future version, the order of arguments of this constructor should
             //       be fixed ('ownsParent' at the very end).
             
-            mParent = parent;
-            mRegion = region ? region.clone() : new Rectangle(0, 0, parent.width, parent.height);
+            if (region == null)
+                region = new Rectangle(0, 0, parentTexture.width, parentTexture.height);
+            
+            mParent = parentTexture;
             mFrame = frame ? frame.clone() : null;
             mOwnsParent = ownsParent;
             mRotated = rotated;
-            mWidth  = rotated ? mRegion.height : mRegion.width;
-            mHeight = rotated ? mRegion.width  : mRegion.height;
+            mWidth  = rotated ? region.height : region.width;
+            mHeight = rotated ? region.width  : region.height;
             mTransformationMatrix = new Matrix();
             
             if (rotated)
@@ -72,17 +73,11 @@ package starling.textures
                 mTransformationMatrix.translate(0, -1);
                 mTransformationMatrix.rotate(Math.PI / 2.0);
             }
-
-            if (mFrame && (mFrame.x > 0 || mFrame.y > 0 ||
-                mFrame.right < mWidth || mFrame.bottom < mHeight))
-            {
-                trace("[Starling] Warning: frames inside the texture's region are unsupported.");
-            }
-
-            mTransformationMatrix.scale(mRegion.width  / mParent.width,
-                                        mRegion.height / mParent.height);
-            mTransformationMatrix.translate(mRegion.x  / mParent.width,
-                                            mRegion.y  / mParent.height);
+            
+            mTransformationMatrix.scale(region.width  / mParent.width,
+                                        region.height / mParent.height);
+            mTransformationMatrix.translate(region.x / mParent.width,
+                                            region.y / mParent.height);
         }
         
         /** Disposes the parent texture if this texture owns it. */
@@ -142,11 +137,12 @@ package starling.textures
                 MatrixUtil.transformCoords(sMatrix, u, v, sTexCoords);
                 
                 texCoords[    i   ] = sTexCoords.x;
-                texCoords[int(i+1)] = sTexCoords.y;
+                texCoords[int(i+1)] = sTexCoords.y
             }
         }
-        
-        /** The texture which the SubTexture is based on. */
+		
+		public function set parent(value:Texture):void { mParent = value;}
+        /** The texture which the subtexture is based on. */ 
         public function get parent():Texture { return mParent; }
         
         /** Indicates if the parent texture is disposed when this object is disposed. */
@@ -154,11 +150,6 @@ package starling.textures
         
         /** If true, the SubTexture will show the parent region rotated by 90 degrees (CCW). */
         public function get rotated():Boolean { return mRotated; }
-
-        /** The region of the parent texture that the SubTexture is showing (in points).
-         *
-         *  <p>CAUTION: not a copy, but the actual object! Do not modify!</p> */
-        public function get region():Rectangle { return mRegion; }
 
         /** The clipping rectangle, which is the region provided on initialization 
          *  scaled into [0.0, 1.0]. */
@@ -199,7 +190,7 @@ package starling.textures
         public override function get height():Number { return mHeight; }
         
         /** @inheritDoc */
-        public override function get nativeWidth():Number { return mWidth * scale; }
+        public override function get nativeWidth():Number { return mWidth * scale }
         
         /** @inheritDoc */
         public override function get nativeHeight():Number { return mHeight * scale; }

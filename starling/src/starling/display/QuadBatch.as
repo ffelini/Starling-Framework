@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2012 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,32 +10,32 @@
 
 package starling.display
 {
-    import flash.display3D.Context3D;
-    import flash.display3D.Context3DProgramType;
-    import flash.display3D.Context3DTextureFormat;
-    import flash.display3D.Context3DVertexBufferFormat;
-    import flash.display3D.IndexBuffer3D;
-    import flash.display3D.Program3D;
-    import flash.display3D.VertexBuffer3D;
-    import flash.errors.IllegalOperationError;
-    import flash.geom.Matrix;
-    import flash.geom.Matrix3D;
-    import flash.geom.Rectangle;
-    import flash.utils.Dictionary;
-    import flash.utils.getQualifiedClassName;
-    
-    import starling.core.RenderSupport;
-    import starling.core.Starling;
-    import starling.core.starling_internal;
-    import starling.errors.MissingContextError;
-    import starling.events.Event;
-    import starling.filters.FragmentFilter;
-    import starling.filters.FragmentFilterMode;
-    import starling.textures.Texture;
-    import starling.textures.TextureSmoothing;
-    import starling.utils.VertexData;
-    
-    use namespace starling_internal;
+import flash.display3D.Context3D;
+import flash.display3D.Context3DProgramType;
+import flash.display3D.Context3DTextureFormat;
+import flash.display3D.Context3DVertexBufferFormat;
+import flash.display3D.IndexBuffer3D;
+import flash.display3D.Program3D;
+import flash.display3D.VertexBuffer3D;
+import flash.geom.Matrix;
+import flash.geom.Matrix3D;
+import flash.geom.Rectangle;
+import flash.utils.Dictionary;
+import flash.utils.getQualifiedClassName;
+
+import starling.core.RenderSupport;
+import starling.core.Starling;
+import starling.core.starling_internal;
+import starling.errors.MissingContextError;
+import starling.events.Event;
+import starling.filters.FragmentFilter;
+import starling.filters.FragmentFilterMode;
+import starling.textures.Texture;
+import starling.textures.TextureSmoothing;
+import starling.utils.MatrixUtil;
+import starling.utils.VertexData;
+
+use namespace starling_internal;
     
     /** Optimizes rendering of a number of quads with an identical state.
      * 
@@ -73,8 +73,6 @@ package starling.display
         private var mNumQuads:int;
         private var mSyncRequired:Boolean;
         private var mBatchable:Boolean;
-        private var mForceTinted:Boolean;
-        private var mOwnsTexture:Boolean;
 
         private var mTinted:Boolean;
         private var mTexture:Texture;
@@ -92,6 +90,7 @@ package starling.display
         /** Helper objects. */
         private static var sHelperMatrix:Matrix = new Matrix();
         private static var sRenderAlpha:Vector.<Number> = new <Number>[1.0, 1.0, 1.0, 1.0];
+        private static var sRenderMatrix:Matrix3D = new Matrix3D();
         private static var sProgramNameCache:Dictionary = new Dictionary();
         
         /** Creates a new QuadBatch instance with empty batch data. */
@@ -103,9 +102,7 @@ package starling.display
             mTinted = false;
             mSyncRequired = false;
             mBatchable = false;
-            mForceTinted = false;
-            mOwnsTexture = false;
-
+            
             // Handle lost context. We use the conventional event here (not the one from Starling)
             // so we're able to create a weak event listener; this avoids memory leaks when people 
             // forget to call "dispose" on the QuadBatch.
@@ -122,9 +119,6 @@ package starling.display
             mVertexData.numVertices = 0;
             mIndexData.length = 0;
             mNumQuads = 0;
-
-            if (mTexture && mOwnsTexture)
-                mTexture.dispose();
             
             super.dispose();
         }
@@ -159,10 +153,6 @@ package starling.display
         private function expand():void
         {
             var oldCapacity:int = this.capacity;
-
-            if (oldCapacity >= MAX_NUM_QUADS)
-                throw new Error("Exceeded maximum number of quads!");
-
             this.capacity = oldCapacity < 8 ? 16 : oldCapacity * 2;
         }
         
@@ -220,7 +210,7 @@ package starling.display
         /** Renders the current batch with custom settings for model-view-projection matrix, alpha 
          *  and blend mode. This makes it possible to render batches that are not part of the 
          *  display list. */ 
-        public function renderCustom(mvpMatrix:Matrix3D, parentAlpha:Number=1.0,
+        public function renderCustom(mvpMatrix:Matrix, parentAlpha:Number=1.0,
                                      blendMode:String=null):void
         {
             if (mNumQuads == 0) return;
@@ -233,11 +223,12 @@ package starling.display
             sRenderAlpha[0] = sRenderAlpha[1] = sRenderAlpha[2] = pma ? parentAlpha : 1.0;
             sRenderAlpha[3] = parentAlpha;
             
+            MatrixUtil.convertTo3D(mvpMatrix, sRenderMatrix);
             RenderSupport.setBlendFactors(pma, blendMode ? blendMode : this.blendMode);
             
             context.setProgram(getProgram(tinted));
             context.setProgramConstantsFromVector(Context3DProgramType.VERTEX, 0, sRenderAlpha, 1);
-            context.setProgramConstantsFromMatrix(Context3DProgramType.VERTEX, 1, mvpMatrix, true);
+            context.setProgramConstantsFromMatrix(Context3DProgramType.VERTEX, 1, sRenderMatrix, true);
             context.setVertexBufferAt(0, mVertexBuffer, VertexData.POSITION_OFFSET, 
                                       Context3DVertexBufferFormat.FLOAT_2); 
             
@@ -265,12 +256,9 @@ package starling.display
         }
         
         /** Resets the batch. The vertex- and index-buffers remain their size, so that they
-         *  can be reused quickly. */
+         *  can be reused quickly. */  
         public function reset():void
         {
-            if (mTexture && mOwnsTexture)
-                mTexture.dispose();
-
             mNumQuads = 0;
             mTexture = null;
             mSmoothing = null;
@@ -304,7 +292,7 @@ package starling.display
             {
                 this.blendMode = blendMode ? blendMode : quad.blendMode;
                 mTexture = texture;
-                mTinted = mForceTinted || quad.tinted || parentAlpha != 1.0;
+                mTinted = texture ? (quad.tinted || parentAlpha != 1.0) : false;
                 mSmoothing = smoothing;
                 mVertexData.setPremultipliedAlpha(quad.premultipliedAlpha);
             }
@@ -317,7 +305,7 @@ package starling.display
             mSyncRequired = true;
             mNumQuads++;
         }
-
+        
         /** Adds another QuadBatch to this batch. Just like the 'addQuad' method, you have to
          *  make sure that you only add batches with an equal state. */
         public function addQuadBatch(quadBatch:QuadBatch, parentAlpha:Number=1.0, 
@@ -326,6 +314,7 @@ package starling.display
             if (modelViewMatrix == null)
                 modelViewMatrix = quadBatch.transformationMatrix;
             
+            var tinted:Boolean = quadBatch.mTinted || parentAlpha != 1.0;
             var alpha:Number = parentAlpha * quadBatch.alpha;
             var vertexID:int = mNumQuads * 4;
             var numQuads:int = quadBatch.numQuads;
@@ -335,7 +324,7 @@ package starling.display
             {
                 this.blendMode = blendMode ? blendMode : quadBatch.blendMode;
                 mTexture = quadBatch.mTexture;
-                mTinted = mForceTinted || quadBatch.mTinted || parentAlpha != 1.0;
+                mTinted = tinted;
                 mSmoothing = quadBatch.mSmoothing;
                 mVertexData.setPremultipliedAlpha(quadBatch.mVertexData.premultipliedAlpha, false);
             }
@@ -353,7 +342,7 @@ package starling.display
         /** Indicates if specific quads can be added to the batch without causing a state change. 
          *  A state change occurs if the quad uses a different base texture, has a different 
          *  'tinted', 'smoothing', 'repeat' or 'blendMode' setting, or if the batch is full
-         *  (one batch can contain up to 16383 quads). */
+         *  (one batch can contain up to 8192 quads). */
         public function isStateChange(tinted:Boolean, parentAlpha:Number, texture:Texture, 
                                       smoothing:String, blendMode:String, numQuads:int=1):Boolean
         {
@@ -365,7 +354,7 @@ package starling.display
                 return mTexture.base != texture.base ||
                        mTexture.repeat != texture.repeat ||
                        mSmoothing != smoothing ||
-                       mTinted != (mForceTinted || tinted || parentAlpha != 1.0) ||
+                       mTinted != (tinted || parentAlpha != 1.0) ||
                        this.blendMode != blendMode;
             else return true;
         }
@@ -434,20 +423,7 @@ package starling.display
             
             mSyncRequired = true;
         }
-
-        /** Replaces a quad or image at a certain index with another one. */
-        public function setQuad(quadID:Number, quad:Quad):void
-        {
-            var matrix:Matrix = quad.transformationMatrix;
-            var alpha:Number  = quad.alpha;
-            var vertexID:int  = quadID * 4;
-
-            quad.copyVertexDataTransformedTo(mVertexData, vertexID, matrix);
-            if (alpha != 1.0) mVertexData.scaleAlpha(vertexID, alpha, 4);
-
-            mSyncRequired = true;
-        }
-
+        
         /** Calculates the bounds of a specific quad, optionally transformed by a matrix.
          *  If you pass a 'resultRect', the result will be stored in this rectangle
          *  instead of creating a new object. */
@@ -481,7 +457,7 @@ package starling.display
                 {
                     support.finishQuadBatch();
                     support.raiseDrawCount();
-                    renderCustom(support.mvpMatrix3D, alpha * parentAlpha, support.blendMode);
+                    renderCustom(support.mvpMatrix, alpha * parentAlpha, support.blendMode);
                 }
             }
         }
@@ -498,30 +474,6 @@ package starling.display
             compileObject(object, quadBatches, -1, new Matrix());
         }
         
-        /** Naively optimizes a list of batches by merging all that have an identical state.
-         *  Naturally, this will change the z-order of some of the batches, so this method is
-         *  useful only for specific use-cases. */
-        public static function optimize(quadBatches:Vector.<QuadBatch>):void
-        {
-            var batch1:QuadBatch, batch2:QuadBatch;
-            for (var i:int=0; i<quadBatches.length; ++i)
-            {
-                batch1 = quadBatches[i];
-                for (var j:int=i+1; j<quadBatches.length; )
-                {
-                    batch2 = quadBatches[j];
-                    if (!batch1.isStateChange(batch2.tinted, 1.0, batch2.texture, batch2.smoothing,
-                                              batch2.blendMode, batch2.numQuads))
-                    {
-                        batch1.addQuadBatch(batch2);
-                        batch2.dispose();
-                        quadBatches.splice(j, 1);
-                    }
-                    else ++j;
-                }
-            }
-        }
-
         private static function compileObject(object:DisplayObject, 
                                               quadBatches:Vector.<QuadBatch>,
                                               quadBatchID:int,
@@ -530,9 +482,6 @@ package starling.display
                                               blendMode:String=null,
                                               ignoreCurrentFilter:Boolean=false):int
         {
-            if (object is Sprite3D)
-                throw new IllegalOperationError("Sprite3D objects cannot be flattened");
-
             var i:int;
             var quadBatch:QuadBatch;
             var isRootObject:Boolean = false;
@@ -542,7 +491,7 @@ package starling.display
             var quad:Quad = object as Quad;
             var batch:QuadBatch = object as QuadBatch;
             var filter:FragmentFilter = object.filter;
-
+            
             if (quadBatchID == -1)
             {
                 isRootObject = true;
@@ -550,16 +499,8 @@ package starling.display
                 objectAlpha = 1.0;
                 blendMode = object.blendMode;
                 ignoreCurrentFilter = true;
-                if (quadBatches.length == 0) quadBatches[0] = new QuadBatch();
-                else { quadBatches[0].reset(); quadBatches[0].ownsTexture = false; }
-            }
-            else
-            {
-                if (object.mask)
-                    trace("[Starling] Masks are ignored on children of a flattened sprite.");
-
-                if ((object is Sprite) && (object as Sprite).clipRect)
-                    trace("[Starling] ClipRects are ignored on children of a flattened sprite.");
+                if (quadBatches.length == 0) quadBatches.push(new QuadBatch());
+                else quadBatches[0].reset();
             }
             
             if (filter && !ignoreCurrentFilter)
@@ -569,13 +510,10 @@ package starling.display
                     quadBatchID = compileObject(object, quadBatches, quadBatchID,
                                                 transformationMatrix, alpha, blendMode, true);
                 }
-
+                
                 quadBatchID = compileObject(filter.compile(object), quadBatches, quadBatchID,
                                             transformationMatrix, alpha, blendMode);
-
-                // textures of a compiled filter need to be disposed!
-                quadBatches[quadBatchID].ownsTexture = true;
-
+                
                 if (filter.mode == FragmentFilterMode.BELOW)
                 {
                     quadBatchID = compileObject(object, quadBatches, quadBatchID,
@@ -625,7 +563,7 @@ package starling.display
                 }
                 
                 quadBatch = quadBatches[quadBatchID];
-
+                
                 if (quadBatch.isStateChange(tinted, alpha*objectAlpha, texture, 
                                             smoothing, blendMode, numQuads))
                 {
@@ -633,9 +571,8 @@ package starling.display
                     if (quadBatches.length <= quadBatchID) quadBatches.push(new QuadBatch());
                     quadBatch = quadBatches[quadBatchID];
                     quadBatch.reset();
-                    quadBatch.ownsTexture = false;
                 }
-
+                
                 if (quad)
                     quadBatch.addQuad(quad, alpha, texture, smoothing, transformationMatrix, blendMode);
                 else
@@ -662,7 +599,7 @@ package starling.display
         public function get numQuads():int { return mNumQuads; }
         
         /** Indicates if any vertices have a non-white color or are not fully opaque. */
-        public function get tinted():Boolean { return mTinted || mForceTinted; }
+        public function get tinted():Boolean { return mTinted; }
         
         /** The texture that is used for rendering, or null for pure quads. Note that this is the
          *  texture instance of the first added quad; subsequently added quads may use a different
@@ -680,25 +617,8 @@ package starling.display
          *  the CPU costs will exceed any gains you get from avoiding the additional draw call.
          *  @default false */
         public function get batchable():Boolean { return mBatchable; }
-        public function set batchable(value:Boolean):void { mBatchable = value; }
-
-        /** If enabled, the QuadBatch will always be rendered with a tinting-enabled fragment
-         *  shader and the method 'isStateChange' won't take tinting into account. This means
-         *  fewer state changes, but also a slightly more complex fragment shader for non-tinted
-         *  quads. On modern hardware, that's not a problem, and you'll avoid unnecessary state
-         *  changes. However, on old devices like the iPad 1, you should be careful with this
-         *  setting. @default false
-         */
-        public function get forceTinted():Boolean { return mForceTinted; }
-        public function set forceTinted(value:Boolean):void
-        {
-            mForceTinted = value;
-        }
-
-        /** If enabled, the texture (if there is one) will be disposed when the QuadBatch is. */
-        public function get ownsTexture():Boolean { return mOwnsTexture; }
-        public function set ownsTexture(value:Boolean):void { mOwnsTexture = value; }
-
+        public function set batchable(value:Boolean):void { mBatchable = value; } 
+        
         /** Indicates the number of quads for which space is allocated (vertex- and index-buffers).
          *  If you add more quads than what fits into the current capacity, the QuadBatch is
          *  expanded automatically. However, if you know beforehand how many vertices you need,

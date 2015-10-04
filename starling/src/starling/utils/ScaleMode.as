@@ -1,8 +1,8 @@
 package starling.utils
 {
-    import starling.errors.AbstractClassError;
+import starling.errors.AbstractClassError;
 
-    /** A class that provides constant values for the 'RectangleUtil.fit' method. */
+/** A class that provides constant values for the 'RectangleUtil.fit' method. */
     public class ScaleMode
     {
         /** @private */

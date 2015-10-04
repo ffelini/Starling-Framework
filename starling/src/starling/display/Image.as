@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,17 +10,17 @@
 
 package starling.display
 {
-    import flash.display.Bitmap;
-    import flash.geom.Matrix;
-    import flash.geom.Point;
-    import flash.geom.Rectangle;
-    
-    import starling.core.RenderSupport;
-    import starling.textures.Texture;
-    import starling.textures.TextureSmoothing;
-    import starling.utils.VertexData;
-    
-    /** An Image is a quad with a texture mapped onto it.
+import flash.display.Bitmap;
+import flash.geom.Matrix;
+import flash.geom.Point;
+import flash.geom.Rectangle;
+
+import starling.core.RenderSupport;
+import starling.textures.Texture;
+import starling.textures.TextureSmoothing;
+import starling.utils.VertexData;
+
+/** An Image is a quad with a texture mapped onto it.
      *  
      *  <p>The Image class is the Starling equivalent of Flash's Bitmap class. Instead of 
      *  BitmapData, Starling uses textures to represent the pixels of an image. To display a 
@@ -38,8 +38,8 @@ package starling.display
      */ 
     public class Image extends Quad
     {
-        private var mTexture:Texture;
-        private var mSmoothing:String;
+        protected var mTexture:Texture;
+        protected var mSmoothing:String;
         
         private var mVertexDataCache:VertexData;
         private var mVertexDataCacheInvalid:Boolean;

@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2012 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,15 +10,15 @@
 
 package starling.filters
 {
-    import flash.display3D.Context3D;
-    import flash.display3D.Context3DProgramType;
-    import flash.display3D.Program3D;
-    
-    import starling.core.Starling;
-    import starling.textures.Texture;
-    import starling.utils.Color;
+import flash.display3D.Context3D;
+import flash.display3D.Context3DProgramType;
+import flash.display3D.Program3D;
 
-    /** The BlurFilter applies a Gaussian blur to an object. The strength of the blur can be
+import starling.core.Starling;
+import starling.textures.Texture;
+import starling.utils.Color;
+
+/** The BlurFilter applies a Gaussian blur to an object. The strength of the blur can be
      *  set for x- and y-axis separately (always relative to the stage).
      *  A blur filter can also be set up as a drop shadow or glow filter. Use the respective
      *  static methods to create such a filter.

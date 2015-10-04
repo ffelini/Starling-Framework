@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2012 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,38 +10,36 @@
 
 package starling.filters
 {
-    import flash.display3D.Context3D;
-    import flash.display3D.Context3DProgramType;
-    import flash.display3D.Context3DVertexBufferFormat;
-    import flash.display3D.IndexBuffer3D;
-    import flash.display3D.Program3D;
-    import flash.display3D.VertexBuffer3D;
-    import flash.errors.IllegalOperationError;
-    import flash.geom.Matrix;
-    import flash.geom.Matrix3D;
-    import flash.geom.Rectangle;
-    import flash.system.Capabilities;
-    import flash.utils.getQualifiedClassName;
-    
-    import starling.core.RenderSupport;
-    import starling.core.Starling;
-    import starling.core.starling_internal;
-    import starling.display.BlendMode;
-    import starling.display.DisplayObject;
-    import starling.display.Image;
-    import starling.display.QuadBatch;
-    import starling.display.Stage;
-    import starling.errors.AbstractClassError;
-    import starling.errors.MissingContextError;
-    import starling.events.Event;
-    import starling.textures.Texture;
-    import starling.utils.MatrixUtil;
-    import starling.utils.RectangleUtil;
-    import starling.utils.SystemUtil;
-    import starling.utils.VertexData;
-    import starling.utils.getNextPowerOfTwo;
+import flash.display3D.Context3D;
+import flash.display3D.Context3DProgramType;
+import flash.display3D.Context3DVertexBufferFormat;
+import flash.display3D.IndexBuffer3D;
+import flash.display3D.Program3D;
+import flash.display3D.VertexBuffer3D;
+import flash.errors.IllegalOperationError;
+import flash.geom.Matrix;
+import flash.geom.Rectangle;
+import flash.system.Capabilities;
+import flash.utils.getQualifiedClassName;
 
-    /** The FragmentFilter class is the base class for all filter effects in Starling.
+import starling.core.RenderSupport;
+import starling.core.Starling;
+import starling.core.starling_internal;
+import starling.display.BlendMode;
+import starling.display.DisplayObject;
+import starling.display.Image;
+import starling.display.QuadBatch;
+import starling.display.Stage;
+import starling.errors.AbstractClassError;
+import starling.errors.MissingContextError;
+import starling.events.Event;
+import starling.textures.Texture;
+import starling.utils.MatrixUtil;
+import starling.utils.RectangleUtil;
+import starling.utils.VertexData;
+import starling.utils.getNextPowerOfTwo;
+
+/** The FragmentFilter class is the base class for all filter effects in Starling.
      *  All other filters of this package extend this class. You can attach them to any display
      *  object through the 'filter' property.
      * 
@@ -107,16 +105,13 @@ package starling.filters
         private var mCacheRequested:Boolean;
         private var mCache:QuadBatch;
         
-        /** Helper objects. */
+        /** helper objects. */
+        private var mProjMatrix:Matrix = new Matrix();
+        private static var sBounds:Rectangle  = new Rectangle();
+        private static var sBoundsPot:Rectangle = new Rectangle();
         private static var sStageBounds:Rectangle = new Rectangle();
         private static var sTransformationMatrix:Matrix = new Matrix();
         
-        /** Helper objects that may be used recursively (thus not static). */
-        private var mHelperMatrix:Matrix     = new Matrix();
-        private var mHelperMatrix3D:Matrix3D = new Matrix3D();
-        private var mHelperRect:Rectangle    = new Rectangle();
-        private var mHelperRect2:Rectangle   = new Rectangle();
-
         /** Creates a new Fragment filter with the specified number of passes and resolution.
          *  This constructor may only be called by the constructor of a subclass. */
         public function FragmentFilter(numPasses:int=1, resolution:Number=1.0)
@@ -133,9 +128,8 @@ package starling.filters
             mMarginX = mMarginY = 0.0;
             mOffsetX = mOffsetY = 0;
             mResolution = resolution;
-            mPassTextures = new <Texture>[];
             mMode = FragmentFilterMode.REPLACE;
-
+            
             mVertexData = new VertexData(4);
             mVertexData.setTexCoords(0, 0, 0);
             mVertexData.setTexCoords(1, 1, 0);
@@ -144,9 +138,8 @@ package starling.filters
             
             mIndexData = new <uint>[0, 1, 2, 1, 3, 2];
             mIndexData.fixed = true;
-
-            if (Starling.current.contextValid)
-                createPrograms();
+            
+            createPrograms();
             
             // Handle lost context. By using the conventional event, we can make it weak; this  
             // avoids memory leaks when people forget to call "dispose" on the filter.
@@ -168,8 +161,8 @@ package starling.filters
         {
             mVertexBuffer = null;
             mIndexBuffer  = null;
-
-            disposePassTextures();
+            mPassTextures = null;
+            
             createPrograms();
             if (mCache) cache();
         }
@@ -204,75 +197,60 @@ package starling.filters
                 object.render(support, parentAlpha);
         }
         
-        private function renderPasses(object:DisplayObject, support:RenderSupport,
+        private function renderPasses(object:DisplayObject, support:RenderSupport, 
                                       parentAlpha:Number, intoCache:Boolean=false):QuadBatch
         {
             var passTexture:Texture;
             var cacheTexture:Texture = null;
+            var stage:Stage = object.stage;
             var context:Context3D = Starling.context;
-            var targetSpace:DisplayObject = object.stage;
-            var stage:Stage  = Starling.current.stage;
             var scale:Number = Starling.current.contentScaleFactor;
-            var projMatrix:Matrix     = mHelperMatrix;
-            var projMatrix3D:Matrix3D = mHelperMatrix3D;
-            var bounds:Rectangle      = mHelperRect;
-            var boundsPot:Rectangle   = mHelperRect2;
-            var previousStencilRefValue:uint;
-            var previousRenderTarget:Texture;
-            var intersectWithStage:Boolean;
-
+            
+            if (stage   == null) throw new Error("Filtered object must be on the stage.");
             if (context == null) throw new MissingContextError();
             
-            // the bounds of the object in stage coordinates
-            // (or, if the object is not connected to the stage, in its base object's coordinates)
-            intersectWithStage = !intoCache && mOffsetX == 0 && mOffsetY == 0;
-            calculateBounds(object, targetSpace, mResolution * scale, intersectWithStage, bounds, boundsPot);
+            // the bounds of the object in stage coordinates 
+            calculateBounds(object, stage, mResolution * scale, !intoCache, sBounds, sBoundsPot);
             
-            if (bounds.isEmpty())
+            if (sBounds.isEmpty())
             {
                 disposePassTextures();
                 return intoCache ? new QuadBatch() : null; 
             }
             
-            updateBuffers(context, boundsPot);
-            updatePassTextures(boundsPot.width, boundsPot.height, mResolution * scale);
+            updateBuffers(context, sBoundsPot);
+            updatePassTextures(sBoundsPot.width, sBoundsPot.height, mResolution * scale);
             
             support.finishQuadBatch();
             support.raiseDrawCount(mNumPasses);
             support.pushMatrix();
-            support.pushMatrix3D();
-            support.pushClipRect(boundsPot, false);
-
-            // save original state (projection matrix, render target, stencil reference value)
-            projMatrix.copyFrom(support.projectionMatrix);
-            projMatrix3D.copyFrom(support.projectionMatrix3D);
-            previousRenderTarget = support.renderTarget;
-            previousStencilRefValue = support.stencilReferenceValue;
-
-            if (previousRenderTarget && !SystemUtil.supportsRelaxedTargetClearRequirement)
-                throw new IllegalOperationError(
-                    "To nest filters, you need at least Flash Player / AIR version 15.");
             
-            if (intoCache)
-                cacheTexture = Texture.empty(boundsPot.width, boundsPot.height, PMA, false, true,
+            // save original projection matrix and render target
+            mProjMatrix.copyFrom(support.projectionMatrix); 
+            var previousRenderTarget:Texture = support.renderTarget;
+            
+            if (previousRenderTarget)
+                throw new IllegalOperationError(
+                    "It's currently not possible to stack filters! " +
+                    "This limitation will be removed in a future Stage3D version.");
+            
+            if (intoCache) 
+                cacheTexture = Texture.empty(sBoundsPot.width, sBoundsPot.height, PMA, false, true, 
                                              mResolution * scale);
-
+            
             // draw the original object into a texture
             support.renderTarget = mPassTextures[0];
             support.clear();
             support.blendMode = BlendMode.NORMAL;
-            support.stencilReferenceValue = 0;
-            support.setProjectionMatrix(
-                bounds.x, bounds.y, boundsPot.width, boundsPot.height,
-                stage.stageWidth, stage.stageHeight, stage.cameraPosition);
-
+            support.setOrthographicProjection(sBounds.x, sBounds.y, sBoundsPot.width, sBoundsPot.height);
             object.render(support, parentAlpha);
             support.finishQuadBatch();
             
             // prepare drawing of actual filter passes
             RenderSupport.setBlendFactors(PMA);
             support.loadIdentity();  // now we'll draw in stage coordinates!
-
+            support.pushClipRect(sBounds);
+            
             context.setVertexBufferAt(mVertexPosAtID, mVertexBuffer, VertexData.POSITION_OFFSET, 
                                       Context3DVertexBufferFormat.FLOAT_2);
             context.setVertexBufferAt(mTexCoordsAtID, mVertexBuffer, VertexData.TEXCOORD_OFFSET,
@@ -298,12 +276,9 @@ package starling.filters
                     else
                     {
                         // draw into back buffer, at original (stage) coordinates
-                        support.popClipRect();
-                        support.projectionMatrix   = projMatrix;
-                        support.projectionMatrix3D = projMatrix3D;
+                        support.projectionMatrix = mProjMatrix;
                         support.renderTarget = previousRenderTarget;
                         support.translateMatrix(mOffsetX, mOffsetY);
-                        support.stencilReferenceValue = previousStencilRefValue;
                         support.blendMode = object.blendMode;
                         support.applyBlendMode(PMA);
                     }
@@ -323,17 +298,15 @@ package starling.filters
             context.setVertexBufferAt(mVertexPosAtID, null);
             context.setVertexBufferAt(mTexCoordsAtID, null);
             context.setTextureAt(mBaseTextureID, null);
-
+            
             support.popMatrix();
-            support.popMatrix3D();
-
+            support.popClipRect();
+            
             if (intoCache)
             {
                 // restore support settings
-                support.projectionMatrix.copyFrom(projMatrix);
-                support.projectionMatrix3D.copyFrom(projMatrix3D);
                 support.renderTarget = previousRenderTarget;
-                support.popClipRect();
+                support.projectionMatrix.copyFrom(mProjMatrix);
                 
                 // Create an image containing the cache. To have a display object that contains
                 // the filter output in object coordinates, we wrap it in a QuadBatch: that way,
@@ -342,14 +315,10 @@ package starling.filters
                 var quadBatch:QuadBatch = new QuadBatch();
                 var image:Image = new Image(cacheTexture);
                 
-                // targetSpace could be null, so we calculate the matrix from the other side
-                // and invert.
-
-                object.getTransformationMatrix(targetSpace, sTransformationMatrix).invert();
-                MatrixUtil.prependTranslation(sTransformationMatrix,
-                    bounds.x + mOffsetX, bounds.y + mOffsetY);
+                stage.getTransformationMatrix(object, sTransformationMatrix);
+                MatrixUtil.prependTranslation(sTransformationMatrix, 
+                                              sBounds.x + mOffsetX, sBounds.y + mOffsetY);
                 quadBatch.addImage(image, 1.0, sTransformationMatrix);
-                quadBatch.ownsTexture = true;
 
                 return quadBatch;
             }
@@ -375,18 +344,27 @@ package starling.filters
             mVertexBuffer.uploadFromVector(mVertexData.rawData, 0, 4);
         }
         
-        private function updatePassTextures(width:Number, height:Number, scale:Number):void
+        private function updatePassTextures(width:int, height:int, scale:Number):void
         {
             var numPassTextures:int = mNumPasses > 1 ? 2 : 1;
-            var needsUpdate:Boolean =
+            var needsUpdate:Boolean = mPassTextures == null || 
                 mPassTextures.length != numPassTextures ||
-                Math.abs(mPassTextures[0].nativeWidth  - width  * scale) > 0.1 ||
-                Math.abs(mPassTextures[0].nativeHeight - height * scale) > 0.1;
+                mPassTextures[0].width != width || mPassTextures[0].height != height;  
             
             if (needsUpdate)
             {
-                disposePassTextures();
-
+                if (mPassTextures)
+                {
+                    for each (var texture:Texture in mPassTextures) 
+                        texture.dispose();
+                    
+                    mPassTextures.length = numPassTextures;
+                }
+                else
+                {
+                    mPassTextures = new Vector.<Texture>(numPassTextures);
+                }
+                
                 for (var i:int=0; i<numPassTextures; ++i)
                     mPassTextures[i] = Texture.empty(width, height, PMA, false, true, scale);
             }
@@ -401,41 +379,32 @@ package starling.filters
          *  rectangles: one with the exact filter bounds, the other with an extended rectangle that
          *  will yield to a POT size when multiplied with the current scale factor / resolution.
          */
-        private function calculateBounds(object:DisplayObject, targetSpace:DisplayObject,
-                                         scale:Number, intersectWithStage:Boolean,
+        private function calculateBounds(object:DisplayObject, stage:Stage, scale:Number, 
+                                         intersectWithStage:Boolean, 
                                          resultRect:Rectangle,
                                          resultPotRect:Rectangle):void
         {
-            var stage:Stage;
-            var marginX:Number = mMarginX;
-            var marginY:Number = mMarginY;
+            var marginX:Number, marginY:Number;
             
-            if (targetSpace is Stage)
+            if (object == stage || object == Starling.current.root)
             {
-                stage = targetSpace as Stage;
-
-                if (object == stage || object == object.root)
-                {
-                    // optimize for full-screen effects
-                    marginX = marginY = 0;
-                    resultRect.setTo(0, 0, stage.stageWidth, stage.stageHeight);
-                }
-                else
-                {
-                    object.getBounds(stage, resultRect);
-                }
-
-                if (intersectWithStage)
-                {
-                    sStageBounds.setTo(0, 0, stage.stageWidth, stage.stageHeight);
-                    RectangleUtil.intersect(resultRect, sStageBounds, resultRect);
-                }
+                // optimize for full-screen effects
+                marginX = marginY = 0;
+                resultRect.setTo(0, 0, stage.stageWidth, stage.stageHeight);
             }
             else
             {
-                object.getBounds(targetSpace, resultRect);
+                marginX = mMarginX;
+                marginY = mMarginY;
+                object.getBounds(stage, resultRect);
             }
-
+            
+            if (intersectWithStage)
+            {
+                sStageBounds.setTo(0, 0, stage.stageWidth, stage.stageHeight);
+                RectangleUtil.intersect(resultRect, sStageBounds, resultRect);
+            }
+            
             if (!resultRect.isEmpty())
             {    
                 // the bounds are a rectangle around the object, in stage coordinates,
@@ -458,13 +427,14 @@ package starling.filters
             for each (var texture:Texture in mPassTextures)
                 texture.dispose();
             
-            mPassTextures.length = 0;
+            mPassTextures = null;
         }
         
         private function disposeCache():void
         {
             if (mCache)
             {
+                if (mCache.texture) mCache.texture.dispose();
                 mCache.dispose();
                 mCache = null;
             }
@@ -479,12 +449,11 @@ package starling.filters
             throw new Error("Method has to be implemented in subclass!");
         }
 
-        /** Subclasses must override this method and use it to activate their fragment- and
-         *  vertex-programs.
-         *
-         *  <p>The 'activate' call directly precedes the call to 'context.drawTriangles'. Set up
+        /** Subclasses must override this method and use it to activate their fragment- and 
+         *  to vertext-programs.
+         *  The 'activate' call directly precedes the call to 'context.drawTriangles'. Set up
          *  the context the way your filter needs it. The following constants and attributes 
-         *  are set automatically:</p>
+         *  are set automatically:
          *  
          *  <ul><li>vertex constants 0-3: mvpMatrix (3D)</li>
          *      <li>vertex attribute 0: vertex position (FLOAT_2)</li>
@@ -492,12 +461,11 @@ package starling.filters
          *      <li>texture 0: input texture</li>
          *  </ul>
          *  
-         *  @param pass    the current render pass, starting with '0'. Multipass filters can
-         *                 provide different logic for each pass.
-         *  @param context the current context3D (the same as in Starling.context, passed
-         *                 just for convenience)
-         *  @param texture the input texture, which is already bound to sampler 0.
-         *  */
+         *  @param pass: the current render pass, starting with '0'. Multipass filters can
+         *               provide different logic for each pass.
+         *  @param context: the current context3D (the same as in Starling.context, passed
+         *               just for convenience)
+         *  @param texture: the input texture, which is already bound to sampler 0. */
         protected function activate(pass:int, context:Context3D, texture:Texture):void
         {
             throw new Error("Method has to be implemented in subclass!");
@@ -545,16 +513,19 @@ package starling.filters
         /** @private */
         starling_internal function compile(object:DisplayObject):QuadBatch
         {
-            var support:RenderSupport;
-            var stage:Stage = object.stage;
-            var quadBatch:QuadBatch;
-
-            support = new RenderSupport();
-            object.getTransformationMatrix(stage, support.modelViewMatrix);
-            quadBatch = renderPasses(object, support, 1.0, true);
-            support.dispose();
-
-            return quadBatch;
+            if (mCache) return mCache;
+            else
+            {
+                var renderSupport:RenderSupport;
+                var stage:Stage = object.stage;
+                
+                if (stage == null) 
+                    throw new Error("Filtered object must be on the stage.");
+                
+                renderSupport = new RenderSupport();
+                object.getTransformationMatrix(stage, renderSupport.modelViewMatrix);
+                return renderPasses(object, renderSupport, 1.0, true);
+            }
         }
         
         // properties

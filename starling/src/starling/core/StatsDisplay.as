@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2012 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,19 +10,19 @@
 
 package starling.core
 {
-    import flash.system.System;
-    
-    import starling.display.BlendMode;
-    import starling.display.Quad;
-    import starling.display.Sprite;
-    import starling.events.EnterFrameEvent;
-    import starling.events.Event;
-    import starling.text.BitmapFont;
-    import starling.text.TextField;
-    import starling.utils.HAlign;
-    import starling.utils.VAlign;
-    
-    /** A small, lightweight box that displays the current framerate, memory consumption and
+import flash.system.System;
+
+import starling.display.BlendMode;
+import starling.display.Quad;
+import starling.display.Sprite;
+import starling.events.EnterFrameEvent;
+import starling.events.Event;
+import starling.text.BitmapFont;
+import starling.text.TextField;
+import starling.utils.HAlign;
+import starling.utils.VAlign;
+
+/** A small, lightweight box that displays the current framerate, memory consumption and
      *  the number of draw calls per frame. The display is updated automatically once per frame. */
     internal class StatsDisplay extends Sprite
     {

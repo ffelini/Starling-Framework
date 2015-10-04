@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,12 +10,12 @@
 
 package starling.events
 {
-    import flash.utils.Dictionary;
-    
-    import starling.core.starling_internal;
-    import starling.display.DisplayObject;
-    
-    use namespace starling_internal;
+import flash.utils.Dictionary;
+
+import starling.core.starling_internal;
+import starling.display.DisplayObject;
+
+use namespace starling_internal;
     
     /** The EventDispatcher class is the base class for all classes that dispatch events. 
      *  This is the Starling version of the Flash class with the same name. 
@@ -56,7 +56,7 @@ package starling.events
             if (listeners == null)
                 mEventListeners[type] = new <Function>[listener];
             else if (listeners.indexOf(listener) == -1) // check for duplicates
-                listeners[listeners.length] = listener; // avoid 'push'
+                listeners.push(listener);
         }
         
         /** Removes an event listener from the object. */
@@ -72,17 +72,16 @@ package starling.events
                     // we must not modify the original vector, but work on a copy.
                     // (see comment in 'invokeEvent')
 
-                    var index:int = listeners.indexOf(listener);
+                    var index:int = 0;
+                    var restListeners:Vector.<Function> = new Vector.<Function>(numListeners-1);
 
-                    if (index != -1)
+                    for (var i:int=0; i<numListeners; ++i)
                     {
-                        var restListeners:Vector.<Function> = listeners.slice(0, index);
-
-                        for (var i:int=index+1; i<numListeners; ++i)
-                            restListeners[i-1] = listeners[i];
-
-                        mEventListeners[type] = restListeners;
+                        var otherListener:Function = listeners[i];
+                        if (otherListener != listener) restListeners[int(index++)] = otherListener;
                     }
+
+                    mEventListeners[type] = restListeners;
                 }
             }
         }
@@ -182,7 +181,7 @@ package starling.events
             }
             
             chain.length = 0;
-            sBubbleChains[sBubbleChains.length] = chain; // avoid 'push'
+            sBubbleChains.push(chain);
         }
         
         /** Dispatches an event with the given parameters to all objects that have registered 
@@ -201,7 +200,8 @@ package starling.events
         /** Returns if there are listeners registered for a certain event type. */
         public function hasEventListener(type:String):Boolean
         {
-            var listeners:Vector.<Function> = mEventListeners ? mEventListeners[type] : null;
+            var listeners:Vector.<Function> = mEventListeners ?
+                mEventListeners[type] as Vector.<Function> : null;
             return listeners ? listeners.length != 0 : false;
         }
     }

@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2013 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,9 +10,9 @@
 
 package starling.text 
 {
-    import starling.errors.AbstractClassError;
+import starling.errors.AbstractClassError;
 
-    /** This class is an enumeration of constant values used in setting the 
+/** This class is an enumeration of constant values used in setting the
      *  autoSize property of the TextField class. */ 
     public class TextFieldAutoSize
     {

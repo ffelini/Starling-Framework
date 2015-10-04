@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,9 +10,9 @@
 
 package starling.utils
 {
-    import starling.errors.AbstractClassError;
+import starling.errors.AbstractClassError;
 
-    /** A utility class containing predefined colors and methods converting between different
+/** A utility class containing predefined colors and methods converting between different
      *  color representations. */
     public class Color
     {

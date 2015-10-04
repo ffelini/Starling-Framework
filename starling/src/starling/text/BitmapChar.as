@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,12 +10,12 @@
 
 package starling.text
 {
-    import flash.utils.Dictionary;
-    
-    import starling.display.Image;
-    import starling.textures.Texture;
+import flash.utils.Dictionary;
 
-    /** A BitmapChar contains the information about one char of a bitmap font.  
+import starling.display.Image;
+import starling.textures.Texture;
+
+/** A BitmapChar contains the information about one char of a bitmap font.
      *  <em>You don't have to use this class directly in most cases. 
      *  The TextField class contains methods that handle bitmap fonts for you.</em>    
      */ 

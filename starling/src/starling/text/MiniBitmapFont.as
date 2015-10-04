@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2011 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,13 +10,13 @@
 
 package starling.text
 {
-    import flash.display.BitmapData;
-    import flash.geom.Rectangle;
-    import flash.utils.ByteArray;
-    
-    import starling.textures.Texture;
-    
-    /** @private
+import flash.display.BitmapData;
+import flash.geom.Rectangle;
+import flash.utils.ByteArray;
+
+import starling.textures.Texture;
+
+/** @private
      *  This class contains constants for the 'MINI' bitmap font. It's done that way to avoid
      *  a dependency on the 'mx.core' library (which is required for the 'Embed' statement).
      * 
@@ -275,24 +275,6 @@ package starling.text
         
         public static function get texture():Texture
         {
-            var bitmapData:BitmapData = getBitmapData();
-            var texture:Texture = Texture.fromBitmapData(bitmapData, false);
-            bitmapData.dispose();
-            bitmapData = null;
-
-            texture.root.onRestore = function():void
-            {
-                bitmapData = getBitmapData();
-                texture.root.uploadBitmapData(bitmapData);
-                bitmapData.dispose();
-                bitmapData = null;
-            };
-
-            return texture;
-        }
-
-        private static function getBitmapData():BitmapData
-        {
             var bmpData:BitmapData = new BitmapData(BITMAP_WIDTH, BITMAP_HEIGHT);
             var bmpBytes:ByteArray = new ByteArray();
             var numBytes:int = BITMAP_DATA.length;
@@ -302,9 +284,8 @@ package starling.text
             
             bmpBytes.uncompress();
             bmpData.setPixels(new Rectangle(0, 0, BITMAP_WIDTH, BITMAP_HEIGHT), bmpBytes);
-            bmpBytes.clear();
             
-            return bmpData;
+            return Texture.fromBitmapData(bmpData, false);
         }
         
         public static function get xml():XML { return XML_DATA; }

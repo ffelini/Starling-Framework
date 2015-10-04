@@ -1,7 +1,7 @@
 // =================================================================================================
 //
 //	Starling Framework
-//	Copyright 2011-2014 Gamua. All Rights Reserved.
+//	Copyright 2013 Gamua OG. All Rights Reserved.
 //
 //	This program is free software. You can redistribute and/or modify it
 //	in accordance with the terms of the accompanying license agreement.
@@ -10,22 +10,22 @@
 
 package starling.filters
 {
-    import flash.display.BitmapDataChannel;
-    import flash.display3D.Context3D;
-    import flash.display3D.Context3DProgramType;
-    import flash.display3D.Context3DTextureFormat;
-    import flash.display3D.Context3DVertexBufferFormat;
-    import flash.display3D.Program3D;
-    import flash.display3D.VertexBuffer3D;
-    import flash.geom.Matrix3D;
-    import flash.geom.Point;
-    
-    import starling.core.RenderSupport;
-    import starling.core.Starling;
-    import starling.textures.Texture;
-    import starling.utils.formatString;
-    
-    /** The DisplacementMapFilter class uses the pixel values from the specified texture (called
+import flash.display.BitmapDataChannel;
+import flash.display3D.Context3D;
+import flash.display3D.Context3DProgramType;
+import flash.display3D.Context3DTextureFormat;
+import flash.display3D.Context3DVertexBufferFormat;
+import flash.display3D.Program3D;
+import flash.display3D.VertexBuffer3D;
+import flash.geom.Matrix3D;
+import flash.geom.Point;
+
+import starling.core.RenderSupport;
+import starling.core.Starling;
+import starling.textures.Texture;
+import starling.utils.formatString;
+
+/** The DisplacementMapFilter class uses the pixel values from the specified texture (called
      *  the displacement map) to perform a displacement of an object. You can use this filter 
      *  to apply a warped or mottled effect to any object that inherits from the DisplayObject 
      *  class. 
@@ -70,7 +70,6 @@ package starling.filters
             mComponentY = componentY;
             mScaleX = scaleX;
             mScaleY = scaleY;
-            mRepeat = repeat;
             this.mapPoint = mapPoint;
             
             super();
@@ -187,11 +186,11 @@ package starling.filters
             // vertex buffer: (containing map texture coordinates)
             // The size of input texture and map texture may be different. We need to calculate
             // the right values for the texture coordinates at the filter vertices.
-
-            var mapX:Number = mMapPoint.x   /  mapTexture.width;
-            var mapY:Number = mMapPoint.y   /  mapTexture.height;
-            var maxU:Number = textureWidth  / (mapTexture.width  * scale);
-            var maxV:Number = textureHeight / (mapTexture.height * scale);
+            
+            var mapX:Number = mMapPoint.x   / mapTexture.width;
+            var mapY:Number = mMapPoint.y   / mapTexture.height;
+            var maxU:Number = textureWidth  / mapTexture.nativeWidth;
+            var maxV:Number = textureHeight / mapTexture.nativeHeight;
             
             sMapTexCoords[0] = -mapX;        sMapTexCoords[1] = -mapY;
             sMapTexCoords[2] = -mapX + maxU; sMapTexCoords[3] = -mapY;
