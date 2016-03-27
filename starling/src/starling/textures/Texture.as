@@ -388,9 +388,9 @@ import starling.utils.getNextPowerOfTwo;
         /** Creates a texture that contains a region (in pixels) of another texture. The new
          *  texture will reference the base texture; no data is duplicated. */
         public static function fromTexture(texture:Texture, region:Rectangle=null,
-                                           frame:Rectangle=null, rotated:Boolean=false):Texture
+                                           frame:Rectangle=null, rotated:Boolean=false, name:String=""):SubTexture
         {
-            return new SubTexture(texture, region, false, frame, rotated);
+            return new SubTexture(texture, region, false, frame, rotated, name);
         }
         
         /** Converts texture coordinates and vertex positions of raw vertex data into the format 

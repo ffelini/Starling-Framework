@@ -33,6 +33,8 @@ import starling.utils.VertexData;
 		protected var mWidth:Number;
 		protected var mHeight:Number;
 		protected var mTransformationMatrix:Matrix;
+
+        private var mName:String;
         
         /** Helper object. */
         private static var sTexCoords:Point = new Point();
@@ -52,7 +54,7 @@ import starling.utils.VertexData;
          */
         public function SubTexture(parentTexture:Texture, region:Rectangle,
                                    ownsParent:Boolean=false, frame:Rectangle=null,
-                                   rotated:Boolean=false)
+                                   rotated:Boolean=false, name:String="")
         {
             // TODO: in a future version, the order of arguments of this constructor should
             //       be fixed ('ownsParent' at the very end).
@@ -64,6 +66,7 @@ import starling.utils.VertexData;
             mFrame = frame ? frame.clone() : null;
             mOwnsParent = ownsParent;
             mRotated = rotated;
+            mName = name;
             mWidth  = rotated ? region.height : region.width;
             mHeight = rotated ? region.width  : region.height;
             mTransformationMatrix = new Matrix();
@@ -209,5 +212,13 @@ import starling.utils.VertexData;
         
         /** @inheritDoc */
         public override function get frame():Rectangle { return mFrame; }
+
+        public function get name():String {
+            return mName;
+        }
+
+    public function toString():String {
+        return "SubTexture{mWidth=" + String(mWidth) + ",mHeight=" + String(mHeight) + ",mName=" + String(mName) + "}";
     }
+}
 }
